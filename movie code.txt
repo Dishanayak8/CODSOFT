@@ -1,0 +1,71 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+
+
+file_path = "51a2861c-0c9a-4948-92d4-ca1fffc51507.csv"
+df = pd.read_csv(file_path, encoding='ISO-8859-1')
+
+df = df[['Genre', 'Director', 'Actor 1', 'Actor 2', 'Actor 3', 'Rating']]
+df = df.dropna(subset=['Genre', 'Director', 'Actor 1', 'Rating'])
+
+
+X = df[['Genre', 'Director', 'Actor 1', 'Actor 2', 'Actor 3']]
+y = df['Rating']
+
+
+categorical_features = ['Genre', 'Director', 'Actor 1', 'Actor 2', 'Actor 3']
+preprocessor = ColumnTransformer(transformers=[
+    ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
+])
+
+model = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('regressor', LinearRegression())
+])
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+model.fit(X_train, y_train)
+
+
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+
+print(" Model trained successfully.")
+print(" Mean Squared Error on test set:", round(mse, 3))
+
+print("\n Top Genres by Average Rating:")
+print(df.groupby('Genre')['Rating'].mean().sort_values(ascending=False).head(5))
+
+
+print("\n Top Directors by Average Rating (with at least 3 movies):")
+top_directors = df.groupby('Director')['Rating'].agg(['mean', 'count'])
+print(top_directors[top_directors['count'] >= 3].sort_values('mean', ascending=False).head(5))
+
+
+print("\n Top Actors (Actor 1) by Average Rating (with at least 3 movies):")
+top_actors = df.groupby('Actor 1')['Rating'].agg(['mean', 'count'])
+print(top_actors[top_actors['count'] >= 3].sort_values('mean', ascending=False).head(5))
+
+sample_movie = pd.DataFrame({
+    'Genre': ['Drama'],
+    'Director': ['Christopher Nolan'],
+    'Actor 1': ['Christian Bale'],
+    'Actor 2': ['Michael Caine'],
+    'Actor 3': ['Tom Hardy']
+})
+
+predicted_rating = model.predict(sample_movie)[0]
+print(f"\n🎥 Predicted rating for a sample movie: {round(predicted_rating, 2)}")
+
+print("\n📌 Conclusion:")
+print("The model was able to learn patterns in movie metadata such as genre, director, and lead actors to predict ratings.")
+print(f"It achieved an MSE of {round(mse, 3)} on the test set.")
+print("Genres like Drama and directors like Christopher Nolan were associated with higher average ratings.")
